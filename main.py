@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import os
 import random
 import math
@@ -57,6 +57,22 @@ def create_animation_frame(frame_num, total_frames):
             center_x - radius, center_y - radius,
             center_x + radius, center_y + radius
         ], fill=color + (alpha,))
+    
+    # Tekst animatie - geleidelijk meer tekst tonen
+    chars_to_show = int((frame_num / total_frames) * len(ANIMATION_TEXT)) + 1
+    visible_text = ANIMATION_TEXT[:chars_to_show]
+    
+    try:
+        font = ImageFont.truetype("arial.ttf", TEXT_SIZE)
+    except:
+        font = ImageFont.load_default()
+    
+    # Teken tekst met heatmap kleuren
+    for i, char in enumerate(visible_text):
+        char_intensity = (i + 1) / len(ANIMATION_TEXT)
+        char_color = get_heatmap_color(char_intensity)
+        char_x = TEXT_POSITION[0] + (i * TEXT_SIZE // 2)
+        draw.text((char_x, TEXT_POSITION[1]), char, fill=char_color + (255,), font=font)
     
     # Combineer achtergrond en overlay
     result = Image.alpha_composite(background, overlay)
