@@ -2,12 +2,6 @@ from PIL import Image, ImageDraw
 import math
 import constants
 
-def get_heatmap_color(intensity):
-    """Geeft fMRI heatmap kleur terug op basis van intensiteit (0-1)"""
-    colors = [(0,0,255), (0,255,255), (0,255,0), (255,255,0), (255,0,0)]  # blauw->rood
-    idx = int(intensity * (len(colors) - 1))
-    return colors[min(idx, len(colors) - 1)]
-
 def create_animation_frame(background, frame_number):
     """
     Creëert een enkel frame van de animatie.
@@ -33,12 +27,12 @@ def create_animation_frame(background, frame_number):
     x = constants.OVAL_CENTER_X + x_offset
     y = constants.OVAL_CENTER_Y + y_offset
     
-    # Gebruik heatmap kleur gebaseerd op frame
-    intensity = frame_number / (constants.ANIMATION_FRAMES - 1)
-    color = get_heatmap_color(intensity)
-    
-    # Teken een simpele vorm als placeholder voor de fMRI/ECG animatie
-    draw.ellipse([x-10, y-10, x+10, y+10], fill=color)
+    # Teken cirkel met radiaal verloop (donker centrum, lichte rand)
+    for r in range(15, 0, -1):
+        intensity = (15 - r) / 15  # 0 (rand) tot 1 (centrum)
+        color_val = int(255 * (1 - intensity * 0.8))  # donkerder naar centrum
+        color = (255, color_val, 0)  # oranje/geel heatmap
+        draw.ellipse([x-r, y-r, x+r, y+r], fill=color)
     
     return frame
 
