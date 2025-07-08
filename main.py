@@ -1,5 +1,7 @@
 from PIL import Image, ImageDraw
 import os
+import random
+import math
 from constants import *
 
 def get_heatmap_color(intensity):
@@ -16,6 +18,17 @@ def get_heatmap_color(intensity):
         b = 0
     return (r, g, b)
 
+def get_random_position_in_oval():
+    """Genereert willekeurige positie binnen het ovaal"""
+    while True:
+        # Genereer willekeurige punt binnen rechthoek
+        x = random.uniform(-OVAL_RADIUS_X, OVAL_RADIUS_X)
+        y = random.uniform(-OVAL_RADIUS_Y, OVAL_RADIUS_Y)
+        
+        # Controleer of punt binnen ovaal ligt
+        if (x/OVAL_RADIUS_X)**2 + (y/OVAL_RADIUS_Y)**2 <= 1:
+            return OVAL_CENTER[0] + int(x), OVAL_CENTER[1] + int(y)
+
 def create_animation_frame(frame_num, total_frames):
     """Creëert een enkel frame van de animatie"""
     # Laad achtergrond of maak placeholder
@@ -24,11 +37,8 @@ def create_animation_frame(frame_num, total_frames):
     else:
         background = Image.new('RGBA', (800, 600), (200, 200, 200, 255))
     
-    # Bereken animatie positie (cirkelbeweging binnen ovaal)
-    import math
-    angle = (frame_num / total_frames) * 2 * math.pi
-    center_x = OVAL_CENTER[0] + int(OVAL_RADIUS_X * 0.3 * math.cos(angle))
-    center_y = OVAL_CENTER[1] + int(OVAL_RADIUS_Y * 0.3 * math.sin(angle))
+    # Willekeurige positie binnen ovaal
+    center_x, center_y = get_random_position_in_oval()
     
     # Teken animatie met graduele overgang
     overlay = Image.new('RGBA', background.size, (0, 0, 0, 0))
