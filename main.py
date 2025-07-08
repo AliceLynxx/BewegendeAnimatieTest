@@ -1,79 +1,73 @@
 from PIL import Image, ImageDraw
-import math
-import constants
+import os
+from constants import *
 
-def create_animation_frame(background, frame_number):
-    """
-    Creëert een enkel frame van de animatie.
+def get_heatmap_color(intensity):
+    """Geeft fMRI-achtige heatmap kleur gebaseerd op intensiteit (0-1)"""
+    if intensity < 0.5:
+        # Blauw naar geel
+        r = int(255 * intensity * 2)
+        g = int(255 * intensity * 2)
+        b = 255 - int(255 * intensity * 2)
+    else:
+        # Geel naar rood
+        r = 255
+        g = 255 - int(255 * (intensity - 0.5) * 2)
+        b = 0
+    return (r, g, b)
+
+def create_animation_frame(frame_num, total_frames):
+    """Creëert een enkel frame van de animatie"""
+    # Laad achtergrond of maak placeholder
+    if os.path.exists(BACKGROUND_PATH):
+        background = Image.open(BACKGROUND_PATH).convert('RGBA')
+    else:
+        background = Image.new('RGBA', (800, 600), (200, 200, 200, 255))
     
-    Args:
-        background: PIL Image object van de achtergrond
-        frame_number: Huidige frame nummer (0, 1, 2)
+    # Bereken animatie positie (cirkelbeweging binnen ovaal)
+    import math
+    angle = (frame_num / total_frames) * 2 * math.pi
+    center_x = OVAL_CENTER[0] + int(OVAL_RADIUS_X * 0.3 * math.cos(angle))
+    center_y = OVAL_CENTER[1] + int(OVAL_RADIUS_Y * 0.3 * math.sin(angle))
     
-    Returns:
-        PIL Image object van het gecreëerde frame
-    """
-    # Kopieer de achtergrond
-    frame = background.copy()
-    draw = ImageDraw.Draw(frame)
+    # Teken animatie met graduele overgang
+    overlay = Image.new('RGBA', background.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
     
-    # Bereken positie binnen het ovaal gebaseerd op frame nummer
-    angle = (frame_number * 2 * math.pi) / constants.ANIMATION_FRAMES
+    # Teken concentrische cirkels voor vloeiende overgang
+    for i in range(50):
+        radius = ANIMATION_SIZE - (i * ANIMATION_SIZE // 50)
+        if radius <= 0:
+            break
+        intensity = 1.0 - (i / 50.0)  # Donker centrum, licht rand
+        color = get_heatmap_color(intensity * 0.8)
+        alpha = int(255 * intensity * 0.3)  # Zachte transparantie
+        
+        draw.ellipse([
+            center_x - radius, center_y - radius,
+            center_x + radius, center_y + radius
+        ], fill=color + (alpha,))
     
-    # Bereken x,y positie binnen het ovaal
-    x_offset = (constants.OVAL_WIDTH / 2 - 20) * math.cos(angle)
-    y_offset = (constants.OVAL_HEIGHT / 2 - 20) * math.sin(angle)
-    
-    x = constants.OVAL_CENTER_X + x_offset
-    y = constants.OVAL_CENTER_Y + y_offset
-    
-    # Teken cirkel met radiaal verloop (donker centrum, lichte rand)
-    for r in range(15, 0, -1):
-        intensity = (15 - r) / 15  # 0 (rand) tot 1 (centrum)
-        color_val = int(255 * (1 - intensity * 0.8))  # donkerder naar centrum
-        color = (255, color_val, 0)  # oranje/geel heatmap
-        draw.ellipse([x-r, y-r, x+r, y+r], fill=color)
-    
-    return frame
+    # Combineer achtergrond en overlay
+    result = Image.alpha_composite(background, overlay)
+    return result.convert('RGB')
 
 def create_gif():
-    """
-    Creëert de GIF animatie met de bewegende elementen binnen het ovaal.
-    """
-    try:
-        # Laad de achtergrond afbeelding
-        background = Image.open(constants.BACKGROUND_PATH)
-    except FileNotFoundError:
-        print(f"Achtergrond bestand niet gevonden: {constants.BACKGROUND_PATH}")
-        print("Maak een placeholder achtergrond aan...")
-        # Maak een placeholder achtergrond
-        background = Image.new('RGB', (800, 600), color='lightblue')
-        draw = ImageDraw.Draw(background)
-        # Teken het ovaal als referentie
-        oval_bounds = [
-            constants.OVAL_CENTER_X - constants.OVAL_WIDTH/2,
-            constants.OVAL_CENTER_Y - constants.OVAL_HEIGHT/2,
-            constants.OVAL_CENTER_X + constants.OVAL_WIDTH/2,
-            constants.OVAL_CENTER_Y + constants.OVAL_HEIGHT/2
-        ]
-        draw.ellipse(oval_bounds, outline="black", width=2)
-    
-    # Genereer alle frames
+    """Creëert de GIF animatie"""
     frames = []
-    for i in range(constants.ANIMATION_FRAMES):
-        frame = create_animation_frame(background, i)
+    for i in range(ANIMATION_FRAMES):
+        frame = create_animation_frame(i, ANIMATION_FRAMES)
         frames.append(frame)
     
-    # Sla de GIF op
+    # Sla op als GIF
     frames[0].save(
-        constants.OUTPUT_FILENAME,
+        OUTPUT_PATH,
         save_all=True,
         append_images=frames[1:],
-        duration=constants.FRAME_DURATION,
+        duration=FRAME_DURATION,
         loop=0
     )
-    
-    print(f"GIF animatie opgeslagen als: {constants.OUTPUT_FILENAME}")
+    print(f"GIF opgeslagen als: {OUTPUT_PATH}")
 
 if __name__ == "__main__":
     create_gif()
